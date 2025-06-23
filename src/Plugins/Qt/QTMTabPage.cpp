@@ -311,11 +311,7 @@ QTMTabPageContainer::dropEvent (QDropEvent* e) {
     }
     arrangeTabPages ();
 
-    object url (draggingTab->m_bufferUrl);
-    cout << "Moving tab from index " << oldIndex << " to index " << newIndex
-         << "\n";
-    // call ("move-buffer-to-index", url, object (newIndex));
-    // call ("swap-window-tabpage" ,(oldIndex), (newIndex));
+    // swap the tab pages in the view history
     swap_window_tabpage (oldIndex, newIndex);
   }
   m_indicator->hide ();

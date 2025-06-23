@@ -1649,15 +1649,6 @@ function main()
                 }
             },
             {
-                scm_name = "attach-view",
-                cpp_name = "attach_view",
-                ret_type = "void",
-                arg_list = {
-                    "url",
-                    "url"
-                }
-            },
-            {
                 scm_name = "detach-view-tabpage",
                 cpp_name = "detach_view_tabpage",
                 ret_type = "void",

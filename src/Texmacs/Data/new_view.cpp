@@ -304,8 +304,9 @@ swap_window_tabpage (int oldIndex, int newIndex) {
          << newIndex << "\n";
     return;
   }
+
   // sort filtered_view_history and filtered_view_history_idx according to
-  // filtered_view_history_nbr just like what we do in get_all_views_unsorted
+  // filtered_view_history_nbr, just like what we do in get_all_views_unsorted
   array<std::pair<int, url>> numbered;
   for (int i= 0; i < N (filtered_view_history); i++) {
     numbered << std::make_pair (filtered_view_history_nbr[i],
@@ -332,22 +333,8 @@ swap_window_tabpage (int oldIndex, int newIndex) {
     }
   }
 
-  // Swap the window tabpages
-  // int tmp = view_history_number[filtered_view_history_idx[oldIndex]];
-  // view_history_number[filtered_view_history_idx[oldIndex]] =
-  //     filtered_view_history_nbr[newIndex];
-  // view_history_number[filtered_view_history_idx[newIndex]] = tmp;
-  // cout << "Swapping tabpages: "
-  //     << filtered_view_history[oldIndex] << " <-> "
-  //     << filtered_view_history[newIndex] << "\n";
-  // print filtered_view_history
-
-  // for all the views that is before the newIndex, we need to
-  // decrement their view number by 1
+  // Change the indices in view_history_number to swap the positions
   int tmp= filtered_view_history_nbr[newIndex];
-  cout << "Swapping tabpages: " << filtered_view_history[oldIndex] << " <-> "
-       << filtered_view_history[newIndex] << "\n";
-  cout << "tmp: " << tmp << "\n";
   if (newIndex > oldIndex)
     for (int i= 0; i < N (filtered_view_history_nbr); i++) {
       if (filtered_view_history_nbr[i] <= tmp) {
@@ -367,17 +354,8 @@ swap_window_tabpage (int oldIndex, int newIndex) {
         cur_view_history_number++; // push forword one index
       }
     }
-
+  // finally set the new number for the oldIndex
   view_history_number[filtered_view_history_idx[oldIndex]]= tmp;
-
-  cout << "Filtered view history: \n";
-  for (int i= 0; i < N (filtered_view_history); i++) {
-    cout << filtered_view_history[i]
-         << " (nbr: " << filtered_view_history_nbr[i] << ") "
-         << "\n";
-  }
-  cout << "\n";
-  return;
 }
 
 /******************************************************************************
@@ -535,7 +513,6 @@ detach_view_tabpage (url win_u, url u) {
   vw->win_tp= NULL;
 
   // Detach routine
-  cout << "Detach view tabpage " << vw->buf->buf->name << "\n";
   vw->win   = NULL;
   widget wid= win_tp->wid;
   ASSERT (is_attached (wid), "widget should be attached");
@@ -549,13 +526,8 @@ detach_view_tabpage (url win_u, url u) {
   array<url> vws  = get_all_views ();
   for (int i= 0; i < N (vws); i++) {
     tm_view vw2= concrete_view (vws[i]);
-    cout << "Checking view " << vws[i] << "\n";
-    cout << "View " << vws[i] << " has tabpage window "
-         << view_to_window_tabpage (vws[i]) << "\n";
     if (vw2 != NULL && vw2 != vw && vw2->win_tp == win_tp) {
-      cout << "Attaching view " << vws[i] << " to window " << win_u << "\n";
       window_set_view (win_u, vws[i], true);
-      // attach_view (win_u, vws[i]);
       found= true;
       break;
     }
@@ -564,23 +536,18 @@ detach_view_tabpage (url win_u, url u) {
   // Window killing
   if (!found) {
     // if cannot find a view close the window
-    cout << "Cannot find view to attach to window" << win_u << "\n";
-    cout << "Killing window " << win_u << "\n";
     kill_window (win_u);
   }
 
   // Buffer & View routine
   tm_buffer  buf    = vw->buf;
   array<url> buf_vws= buffer_to_views (buf->buf->name);
-  cout << "Buffer " << buf->buf->name << " has " << N (buf_vws) << " views\n";
   if (N (buf_vws) == 1) {
-    cout << "Last view on buffer, removing buffer\n";
     int nr, n= N (bufs);
     for (nr= 0; nr < n; nr++) {
-      cout << "Checking buffer " << bufs[nr]->buf->name << "\n";
       if (bufs[nr] == buf) {
-        cout << "Found buffer " << bufs[nr]->buf->name << "\n";
-        delete_view (u);
+        delete_view (
+            u); // we only need to delete once since we have only one view
         if (n == 1 && number_of_servers () == 0) get_server ()->quit ();
         for (int i= nr; i < n - 1; i++)
           bufs[i]= bufs[i + 1];
@@ -591,11 +558,9 @@ detach_view_tabpage (url win_u, url u) {
     }
   }
   else {
-    cout << "Buffer " << buf->buf->name << " has more views, not removing\n";
-    cout << "destroying view " << u << "\n";
+    // delete only the view, not the buffer
     delete_view (u);
   }
-  cout << "Done. View tabpage detached.\n";
 }
 
 /******************************************************************************

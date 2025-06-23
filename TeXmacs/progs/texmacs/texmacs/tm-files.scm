@@ -435,7 +435,6 @@
         ((in? :new-window opts)
          (open-buffer-in-window name (buffer-get name) ""))
         (else
-          (display* "load-buffer-open: switching to buffer " name "\n")
           (switch-to-buffer name)))
   (buffer-notify-recent name)
   (when (nnull? (select (buffer-get name)

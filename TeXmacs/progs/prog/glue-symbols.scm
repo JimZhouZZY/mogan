@@ -720,7 +720,6 @@
 "view-passive"
 "view-recent"
 "view-delete"
-"attach-view"
 "detach-view-tabpage"
 "window-set-view"
 "switch-to-buffer"

@@ -17,24 +17,11 @@
 
 (import (only (srfi srfi-1) list-index))
 
-;; TODO: refactor this to use view-list-unsorted instead of buffer-menu-unsorted-list
-(tm-define (move-buffer-to-index buf j)
-  (define (transform lst index) (- (length lst) 1 index))
-  ;; lst is the reversed buffer list of cpp buffer array
-  (let* ((lst  (buffer-menu-unsorted-list 99))
-         ;; so we need to transform the index to true index in cpp buffer array
-         (from (transform lst (list-index (lambda (x) (== x buf)) lst)))
-         (to   (transform lst j)))
-      (move-buffer-index from to)))
-
 (tm-menu (texmacs-tab-pages)
-  (for (view (view-list-unsorted)) ; buf is the url
+  (for (view (view-list-unsorted))
     (let* ((buf (view->buffer view))
            (cur-win (current-window))
            (view-win (view->window-tabpage view)))
-           ;; display cur-win and windows for debugging
-      ;(display* "cur-win: " cur-win "\n")
-      ;(display* "windows: " windows "\n")
       (if (equal? view-win cur-win)
           (let* ((title  (buffer-get-title buf))
                  (title* (if (== title "") (url->system (url-tail buf)) title))
