@@ -1566,6 +1566,12 @@ function main()
                 ret_type = "array_url"
             },
             {
+                scm_name = "view-list-unsorted",
+                cpp_name = "get_all_views_unsorted",
+                ret_type = "array_url"
+            },
+           
+            {
                 scm_name = "buffer->views",
                 cpp_name = "buffer_to_views",
                 ret_type = "array_url",
@@ -1603,6 +1609,14 @@ function main()
                 }
             },
             {
+                scm_name = "view->window-tabpage-url",
+                cpp_name = "view_to_window_tabpage",
+                ret_type = "url",
+                arg_list = {
+                    "url"
+                }
+            },
+            {
                 scm_name = "view-new",
                 cpp_name = "get_new_view",
                 ret_type = "url",
@@ -1631,6 +1645,24 @@ function main()
                 cpp_name = "delete_view",
                 ret_type = "void",
                 arg_list = {
+                    "url"
+                }
+            },
+            {
+                scm_name = "attach-view",
+                cpp_name = "attach_view",
+                ret_type = "void",
+                arg_list = {
+                    "url",
+                    "url"
+                }
+            },
+            {
+                scm_name = "detach-view-tabpage",
+                cpp_name = "detach_view_tabpage",
+                ret_type = "void",
+                arg_list = {
+                    "url",
                     "url"
                 }
             },

@@ -89,6 +89,7 @@ remove_buffer (tm_buffer buf) {
 
 void
 remove_buffer (url name) {
+  cout << "Removing buffer " << name << "\n";
   tm_buffer buf= concrete_buffer (name);
   if (!is_nil (buf)) remove_buffer (buf);
 }

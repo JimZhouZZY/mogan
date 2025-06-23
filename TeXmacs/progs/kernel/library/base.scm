@@ -385,6 +385,10 @@
   (with win (view->window-url vw)
     (and (not (url-none? win)) win)))
 
+(define-public (view->window-tabpage vw)
+  (with win (view->window-tabpage-url vw)
+    (and (not (url-none? win)) win)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Redirections
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

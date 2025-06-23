@@ -10,6 +10,7 @@
  ******************************************************************************/
 
 #include "QTMTabPage.hpp"
+#include "new_view.hpp"
 
 // The minimum width of a single tab page (in pixels).
 #define MIN_TAB_PAGE_WIDTH 150
@@ -311,7 +312,11 @@ QTMTabPageContainer::dropEvent (QDropEvent* e) {
     arrangeTabPages ();
 
     object url (draggingTab->m_bufferUrl);
-    call ("move-buffer-to-index", url, object (newIndex));
+    cout << "Moving tab from index " << oldIndex << " to index " << newIndex
+         << "\n";
+    // call ("move-buffer-to-index", url, object (newIndex));
+    // call ("swap-window-tabpage" ,(oldIndex), (newIndex));
+    swap_window_tabpage (oldIndex, newIndex);
   }
   m_indicator->hide ();
 }

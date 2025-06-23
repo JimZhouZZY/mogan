@@ -16,6 +16,7 @@
 class editor;
 
 array<url> get_all_views ();
+array<url> get_all_views_unsorted ();
 array<url> buffer_to_views (url name);
 editor     get_current_editor ();
 editor     view_to_editor (url u);
@@ -27,6 +28,8 @@ void       set_current_drd (url u);
 url        window_to_view (url win);
 url        view_to_buffer (url u);
 url        view_to_window (url u);
+url        view_to_window_tabpage (url u);
+void       swap_window_tabpage (int oldIndex, int newIndex);
 url        get_new_view (url name);
 url        get_recent_view (url name);
 url        get_passive_view (url name);
@@ -45,6 +48,7 @@ tm_view              concrete_view (url name);
 url                  abstract_view (tm_view vw);
 void                 attach_view (url win_u, url u);
 void                 detach_view (url u);
+void                 detach_view_tabpage (url win_u, url u);
 url                  get_recent_view (url name, bool s, bool o, bool a, bool p);
 
 #endif // defined NEW_VIEW_H

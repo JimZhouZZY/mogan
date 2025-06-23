@@ -43,7 +43,8 @@ new_view_number (url u) {
 }
 
 tm_view_rep::tm_view_rep (tm_buffer buf2, editor ed2)
-    : buf (buf2), ed (ed2), win (NULL), nr (new_view_number (buf->buf->name)) {}
+    : buf (buf2), ed (ed2), win (NULL), win_tp (NULL),
+      nr (new_view_number (buf->buf->name)) {}
 
 static string
 encode_url (url u) {
@@ -174,6 +175,13 @@ view_to_window (url u) {
   return abstract_window (vw->win);
 }
 
+url
+view_to_window_tabpage (url u) {
+  tm_view vw= concrete_view (u);
+  if (vw == NULL) return url_none ();
+  return abstract_window (vw->win_tp);
+}
+
 editor
 view_to_editor (url u) {
   tm_view vw= concrete_view (u);
@@ -190,18 +198,27 @@ view_to_editor (url u) {
  ******************************************************************************/
 
 array<url> view_history;
+array<int> view_history_number;
+int        cur_view_history_number= 0;
 
 void
 notify_set_view (url u) {
   int i;
   for (i= 0; i < N (view_history); i++)
     if (view_history[i] == u) break;
-  if (i >= N (view_history)) view_history= append (u, view_history);
+  if (i >= N (view_history)) {
+    cur_view_history_number++;
+    view_history       = append (u, view_history);
+    view_history_number= append (cur_view_history_number, view_history_number);
+  }
   else {
-    int j;
-    for (j= i; j > 0; j--)
-      view_history[j]= view_history[j - 1];
-    view_history[j]= u;
+    int tmp= view_history_number[i];
+    for (int j= i; j > 0; j--) {
+      view_history[j]       = view_history[j - 1];
+      view_history_number[j]= view_history_number[j - 1];
+    }
+    view_history_number[0]= tmp;
+    view_history[0]       = u;
   }
 }
 
@@ -211,6 +228,9 @@ notify_delete_view (url u) {
     if (view_history[i] == u) {
       view_history= append (range (view_history, 0, i),
                             range (view_history, i + 1, N (view_history)));
+      view_history_number=
+          append (range (view_history_number, 0, i),
+                  range (view_history_number, i + 1, N (view_history_number)));
       return;
     }
 }
@@ -239,6 +259,125 @@ get_recent_view (url name, bool same, bool other, bool active, bool passive) {
 array<url>
 get_all_views () {
   return view_history;
+}
+
+array<url>
+get_all_views_unsorted () {
+  cout << "get_all_views_unsorted\n";
+  array<std::pair<int, url>> numbered;
+  for (int i= 0; i < N (view_history); i++) {
+    numbered << std::make_pair (view_history_number[i], view_history[i]);
+  }
+  // Sort by view number
+  std::sort (numbered.begin (), numbered.end (),
+             [] (const std::pair<int, url>& a, const std::pair<int, url>& b) {
+               return a.first < b.first;
+             });
+  // Extract sorted urls
+  array<url> result;
+  for (int i= 0; i < N (numbered); i++) {
+    result << numbered[i].second;
+    cout << "get_all_views_unsorted: " << numbered[i].second << " nbr "
+         << numbered[i].first << "\n";
+  }
+  return result;
+}
+
+void
+swap_window_tabpage (int oldIndex, int newIndex) {
+  url cur_win= get_current_window ();
+
+  // filter the views that has ->win_tp set in current window
+  array<url> filtered_view_history;
+  array<int> filtered_view_history_nbr;
+  array<int> filtered_view_history_idx;
+  for (int i= 0; i < N (view_history); i++) {
+    if (view_to_window_tabpage (view_history[i]) == cur_win) {
+      filtered_view_history << view_history[i];
+      filtered_view_history_nbr << view_history_number[i];
+      filtered_view_history_idx << i;
+    }
+  }
+  if (oldIndex < 0 || oldIndex >= N (filtered_view_history) || newIndex < 0 ||
+      newIndex >= N (filtered_view_history)) {
+    cout << "Invalid indices for swapping tabpages: " << oldIndex << ", "
+         << newIndex << "\n";
+    return;
+  }
+  // sort filtered_view_history and filtered_view_history_idx according to
+  // filtered_view_history_nbr just like what we do in get_all_views_unsorted
+  array<std::pair<int, url>> numbered;
+  for (int i= 0; i < N (filtered_view_history); i++) {
+    numbered << std::make_pair (filtered_view_history_nbr[i],
+                                filtered_view_history[i]);
+  }
+  // Sort by view number
+  std::sort (numbered.begin (), numbered.end (),
+             [] (const std::pair<int, url>& a, const std::pair<int, url>& b) {
+               return a.first < b.first;
+             });
+  // Extract sorted urls and their indices
+  filtered_view_history    = array<url> ();
+  filtered_view_history_nbr= array<int> ();
+  filtered_view_history_idx= array<int> ();
+  for (int i= 0; i < N (numbered); i++) {
+    filtered_view_history << numbered[i].second;
+    filtered_view_history_nbr << numbered[i].first;
+    // Find the original index in view_history
+    for (int j= 0; j < N (view_history); j++) {
+      if (view_history[j] == numbered[i].second) {
+        filtered_view_history_idx << j;
+        break;
+      }
+    }
+  }
+
+  // Swap the window tabpages
+  // int tmp = view_history_number[filtered_view_history_idx[oldIndex]];
+  // view_history_number[filtered_view_history_idx[oldIndex]] =
+  //     filtered_view_history_nbr[newIndex];
+  // view_history_number[filtered_view_history_idx[newIndex]] = tmp;
+  // cout << "Swapping tabpages: "
+  //     << filtered_view_history[oldIndex] << " <-> "
+  //     << filtered_view_history[newIndex] << "\n";
+  // print filtered_view_history
+
+  // for all the views that is before the newIndex, we need to
+  // decrement their view number by 1
+  int tmp= filtered_view_history_nbr[newIndex];
+  cout << "Swapping tabpages: " << filtered_view_history[oldIndex] << " <-> "
+       << filtered_view_history[newIndex] << "\n";
+  cout << "tmp: " << tmp << "\n";
+  if (newIndex > oldIndex)
+    for (int i= 0; i < N (filtered_view_history_nbr); i++) {
+      if (filtered_view_history_nbr[i] <= tmp) {
+        view_history_number[filtered_view_history_idx[i]]--;
+      }
+      if (filtered_view_history_nbr[i] > tmp) {
+        view_history_number[filtered_view_history_idx[i]]++;
+      }
+    }
+  else if (newIndex < oldIndex)
+    for (int i= 0; i < N (filtered_view_history_nbr); i++) {
+      if (filtered_view_history_nbr[i] < tmp) {
+        view_history_number[filtered_view_history_idx[i]]--;
+      }
+      if (filtered_view_history_nbr[i] >= tmp) {
+        view_history_number[filtered_view_history_idx[i]]++;
+        cur_view_history_number++; // push forword one index
+      }
+    }
+
+  view_history_number[filtered_view_history_idx[oldIndex]]= tmp;
+
+  cout << "Filtered view history: \n";
+  for (int i= 0; i < N (filtered_view_history); i++) {
+    cout << filtered_view_history[i]
+         << " (nbr: " << filtered_view_history_nbr[i] << ") "
+         << "\n";
+  }
+  cout << "\n";
+  return;
 }
 
 /******************************************************************************
@@ -351,7 +490,10 @@ attach_view (url win_u, url u) {
   tm_view   vw = concrete_view (u);
   if (win == NULL || vw == NULL) return;
   // cout << "Attach view " << vw->buf->buf->name << "\n";
-  vw->win   = win;
+  vw->win= win;
+  if (vw->win_tp == NULL) {
+    vw->win_tp= win;
+  }
   widget wid= win->wid;
   set_scrollable (wid, vw->ed);
   vw->ed->cvw= wid.rep;
@@ -380,6 +522,82 @@ detach_view (url u) {
   // cout << "View detached\n";
 }
 
+void
+detach_view_tabpage (url win_u, url u) {
+  tm_view vw= concrete_view (u);
+  if (vw == NULL) return;
+  tm_window win   = vw->win;
+  tm_window win_tp= vw->win_tp;
+  if (win_tp == NULL) return;
+  if (win == NULL) win= win_tp;
+
+  // Remove view from window's tabpages
+  vw->win_tp= NULL;
+
+  // Detach routine
+  cout << "Detach view tabpage " << vw->buf->buf->name << "\n";
+  vw->win   = NULL;
+  widget wid= win_tp->wid;
+  ASSERT (is_attached (wid), "widget should be attached");
+  vw->ed->suspend ();
+  set_scrollable (wid, glue_widget ());
+  win_tp->set_window_name ("TeXmacs");
+  win_tp->set_window_url (url_none ());
+
+  // Attach routine
+  bool       found= false;
+  array<url> vws  = get_all_views ();
+  for (int i= 0; i < N (vws); i++) {
+    tm_view vw2= concrete_view (vws[i]);
+    cout << "Checking view " << vws[i] << "\n";
+    cout << "View " << vws[i] << " has tabpage window "
+         << view_to_window_tabpage (vws[i]) << "\n";
+    if (vw2 != NULL && vw2 != vw && vw2->win_tp == win_tp) {
+      cout << "Attaching view " << vws[i] << " to window " << win_u << "\n";
+      window_set_view (win_u, vws[i], true);
+      // attach_view (win_u, vws[i]);
+      found= true;
+      break;
+    }
+  }
+
+  // Window killing
+  if (!found) {
+    // if cannot find a view close the window
+    cout << "Cannot find view to attach to window" << win_u << "\n";
+    cout << "Killing window " << win_u << "\n";
+    kill_window (win_u);
+  }
+
+  // Buffer & View routine
+  tm_buffer  buf    = vw->buf;
+  array<url> buf_vws= buffer_to_views (buf->buf->name);
+  cout << "Buffer " << buf->buf->name << " has " << N (buf_vws) << " views\n";
+  if (N (buf_vws) == 1) {
+    cout << "Last view on buffer, removing buffer\n";
+    int nr, n= N (bufs);
+    for (nr= 0; nr < n; nr++) {
+      cout << "Checking buffer " << bufs[nr]->buf->name << "\n";
+      if (bufs[nr] == buf) {
+        cout << "Found buffer " << bufs[nr]->buf->name << "\n";
+        delete_view (u);
+        if (n == 1 && number_of_servers () == 0) get_server ()->quit ();
+        for (int i= nr; i < n - 1; i++)
+          bufs[i]= bufs[i + 1];
+        bufs->resize (n - 1);
+        tm_delete (buf);
+        break;
+      }
+    }
+  }
+  else {
+    cout << "Buffer " << buf->buf->name << " has more views, not removing\n";
+    cout << "destroying view " << u << "\n";
+    delete_view (u);
+  }
+  cout << "Done. View tabpage detached.\n";
+}
+
 /******************************************************************************
  * Switching views
  ******************************************************************************/
@@ -403,6 +621,7 @@ window_set_view (url win_u, url new_u, bool focus) {
 void
 switch_to_buffer (url name) {
   // cout << "Switching to buffer " << name << "\n";
+  if (view_to_buffer (get_current_view_safe ()) == name) return;
   url     u = get_passive_view (name);
   tm_view vw= concrete_view (u);
   if (vw == NULL) return;

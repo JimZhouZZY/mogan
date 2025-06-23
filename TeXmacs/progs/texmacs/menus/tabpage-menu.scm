@@ -17,6 +17,7 @@
 
 (import (only (srfi srfi-1) list-index))
 
+;; TODO: refactor this to use view-list-unsorted instead of buffer-menu-unsorted-list
 (tm-define (move-buffer-to-index buf j)
   (define (transform lst index) (- (length lst) 1 index))
   ;; lst is the reversed buffer list of cpp buffer array
@@ -27,16 +28,23 @@
       (move-buffer-index from to)))
 
 (tm-menu (texmacs-tab-pages)
-  (for (buf (buffer-menu-unsorted-list 99)) ; buf is the url
-    (let* ((title  (buffer-get-title buf))
-        (title*    (if (== title "") (url->system (url-tail buf)) title))
-        (mod?      (buffer-modified? buf))
-        (tab-title (string-append title* (if mod? " *" "")))
-        (doc-path  (url->system buf))
-        (active?   (== (current-buffer) buf)))
-      (tab-page
-        (eval buf)
-        ((balloon (eval `(verbatim ,tab-title)) (eval `(verbatim ,doc-path))) (switch-to-buffer* buf))
-        ((balloon "✕" "Close") (safely-kill-buffer-by-url buf))
-        (eval active?)
-      ))))
+  (for (view (view-list-unsorted)) ; buf is the url
+    (let* ((buf (view->buffer view))
+           (cur-win (current-window))
+           (view-win (view->window-tabpage view)))
+           ;; display cur-win and windows for debugging
+      ;(display* "cur-win: " cur-win "\n")
+      ;(display* "windows: " windows "\n")
+      (if (equal? view-win cur-win)
+          (let* ((title  (buffer-get-title buf))
+                 (title* (if (== title "") (url->system (url-tail buf)) title))
+                 (mod?   (buffer-modified? buf))
+                 (tab-title (string-append title* (if mod? " *" "")))
+                 (doc-path  (url->system buf))
+                 (active?   (== (current-buffer) buf)))
+            (tab-page
+              (eval buf)
+              ((balloon (eval `(verbatim ,tab-title)) (eval `(verbatim ,doc-path))) (window-set-view view-win view #t))
+              ((balloon "✕" "Close") (safely-kill-tabpage-by-url view-win view buf))
+              (eval active?)
+            ))))))

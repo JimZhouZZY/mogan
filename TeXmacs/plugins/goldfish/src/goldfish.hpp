@@ -67,9 +67,11 @@ string_vector_to_s7_vector (s7_scheme* sc, vector<string> v) {
 }
 
 inline void
-glue_define (s7_scheme *sc, const char* name, const char* desc, s7_function f, s7_int required, s7_int optional) {
+glue_define (s7_scheme* sc, const char* name, const char* desc, s7_function f,
+             s7_int required, s7_int optional) {
   s7_pointer cur_env= s7_curlet (sc);
-  s7_pointer func= s7_make_typed_function (sc, name, f, required, optional, false, desc, NULL);
+  s7_pointer func   = s7_make_typed_function (sc, name, f, required, optional,
+                                              false, desc, NULL);
   s7_define (sc, cur_env, s7_make_symbol (sc, name), func);
 }
 
@@ -292,10 +294,12 @@ f_os_call (s7_scheme* sc, s7_pointer args) {
   return s7_make_integer (sc, ret);
 }
 
-inline void glue_os_call(s7_scheme* sc) {
-  const char* name = "g_os-call";
-  const char* desc = "(g_os-call string) => int, execute a shell command and return the exit code";
-  glue_define(sc, name, desc, f_os_call, 1, 0);
+inline void
+glue_os_call (s7_scheme* sc) {
+  const char* name= "g_os-call";
+  const char* desc= "(g_os-call string) => int, execute a shell command and "
+                    "return the exit code";
+  glue_define (sc, name, desc, f_os_call, 1, 0);
 }
 
 static s7_pointer
@@ -305,31 +309,36 @@ f_system (s7_scheme* sc, s7_pointer args) {
   return s7_make_integer (sc, ret);
 }
 
-inline void glue_system(s7_scheme* sc) {
-  const char* name = "g_system";
-  const char* desc = "(g_system string) => int, execute a shell command and return the exit code";
-  glue_define(sc, name, desc, f_system, 1, 0);
+inline void
+glue_system (s7_scheme* sc) {
+  const char* name= "g_system";
+  const char* desc= "(g_system string) => int, execute a shell command and "
+                    "return the exit code";
+  glue_define (sc, name, desc, f_system, 1, 0);
 }
 
 static s7_pointer
 f_access (s7_scheme* sc, s7_pointer args) {
   const char* path_c= s7_string (s7_car (args));
   int         mode  = s7_integer ((s7_cadr (args)));
-  bool ret= false;
+  bool        ret   = false;
   if (mode == 0) {
     tb_file_info_t info;
     ret= tb_file_info (path_c, &info);
-  } else {
+  }
+  else {
     ret= tb_file_access (path_c, mode);
   }
-  
+
   return s7_make_boolean (sc, ret);
 }
 
-inline void glue_access(s7_scheme* sc) {
-  const char* name = "g_access";
-  const char* desc = "(g_access string integer) => boolean, check file access permissions";
-  glue_define(sc, name, desc, f_access, 2, 0);
+inline void
+glue_access (s7_scheme* sc) {
+  const char* name= "g_access";
+  const char* desc=
+      "(g_access string integer) => boolean, check file access permissions";
+  glue_define (sc, name, desc, f_access, 2, 0);
 }
 
 inline void
@@ -349,7 +358,8 @@ f_os_temp_dir (s7_scheme* sc, s7_pointer args) {
 inline void
 glue_os_temp_dir (s7_scheme* sc) {
   const char* name= "g_os-temp-dir";
-  const char* desc= "(g_os-temp-dir) => string, get the temporary directory path";
+  const char* desc=
+      "(g_os-temp-dir) => string, get the temporary directory path";
   glue_define (sc, name, desc, f_os_temp_dir, 0, 0);
 }
 
@@ -359,10 +369,11 @@ f_mkdir (s7_scheme* sc, s7_pointer args) {
   return s7_make_boolean (sc, tb_directory_create (dir_c));
 }
 
-inline void glue_mkdir(s7_scheme* sc) {
-  const char* name = "g_mkdir";
-  const char* desc = "(g_mkdir string) => boolean, create a directory";
-  glue_define(sc, name, desc, f_mkdir, 1, 0);
+inline void
+glue_mkdir (s7_scheme* sc) {
+  const char* name= "g_mkdir";
+  const char* desc= "(g_mkdir string) => boolean, create a directory";
+  glue_define (sc, name, desc, f_mkdir, 1, 0);
 }
 
 static s7_pointer
@@ -371,10 +382,12 @@ f_chdir (s7_scheme* sc, s7_pointer args) {
   return s7_make_boolean (sc, tb_directory_current_set (dir_c));
 }
 
-inline void glue_chdir(s7_scheme* sc) {
-  const char* name = "g_chdir";
-  const char* desc = "(g_chdir string) => boolean, change the current working directory";
-  glue_define(sc, name, desc, f_chdir, 1, 0);
+inline void
+glue_chdir (s7_scheme* sc) {
+  const char* name= "g_chdir";
+  const char* desc=
+      "(g_chdir string) => boolean, change the current working directory";
+  glue_define (sc, name, desc, f_chdir, 1, 0);
 }
 
 static tb_long_t
@@ -418,7 +431,8 @@ f_listdir (s7_scheme* sc, s7_pointer args) {
 inline void
 glue_listdir (s7_scheme* sc) {
   const char* name= "g_listdir";
-  const char* desc= "(g_listdir string) => vector, list the contents of a directory";
+  const char* desc=
+      "(g_listdir string) => vector, list the contents of a directory";
   glue_define (sc, name, desc, f_listdir, 1, 0);
 }
 
@@ -569,87 +583,93 @@ glue_path_getsize (s7_scheme* sc) {
   glue_define (sc, name, desc, f_path_getsize, 1, 0);
 }
 
-static s7_pointer f_path_read_text(s7_scheme* sc, s7_pointer args) {
-  const char* path = s7_string (s7_car (args));
+static s7_pointer
+f_path_read_text (s7_scheme* sc, s7_pointer args) {
+  const char* path= s7_string (s7_car (args));
   if (!path) {
-    return s7_make_boolean(sc, false);
+    return s7_make_boolean (sc, false);
   }
 
-  tb_file_ref_t file = tb_file_init(path, TB_FILE_MODE_RO);
+  tb_file_ref_t file= tb_file_init (path, TB_FILE_MODE_RO);
   if (file == tb_null) {
     // TODO: warning on the tb_file_init failure
-    return s7_make_boolean(sc, false);
+    return s7_make_boolean (sc, false);
   }
 
   tb_file_sync (file);
 
-  tb_size_t size = tb_file_size(file);
+  tb_size_t size= tb_file_size (file);
   if (size == 0) {
     tb_file_exit (file);
     return s7_make_string (sc, "");
   }
 
-  tb_byte_t* buffer = new tb_byte_t[size + 1];
-  tb_size_t real_size = tb_file_read (file, buffer, size);
-  buffer[real_size] = '\0';
+  tb_byte_t* buffer   = new tb_byte_t[size + 1];
+  tb_size_t  real_size= tb_file_read (file, buffer, size);
+  buffer[real_size]   = '\0';
 
-  tb_file_exit(file);
-  std::string content (reinterpret_cast<char*>(buffer), real_size);
+  tb_file_exit (file);
+  std::string content (reinterpret_cast<char*> (buffer), real_size);
   delete[] buffer;
 
-  return s7_make_string(sc, content.c_str());
+  return s7_make_string (sc, content.c_str ());
 }
 
 inline void
-glue_path_read_text(s7_scheme* sc) {
-  const char* name = "g_path-read-text";
-  const char* desc = "(g_path-read-text path) => string, read the content of the file at the given path";
-  s7_define_function(sc, name, f_path_read_text, 1, 0, false, desc);
+glue_path_read_text (s7_scheme* sc) {
+  const char* name= "g_path-read-text";
+  const char* desc= "(g_path-read-text path) => string, read the content of "
+                    "the file at the given path";
+  s7_define_function (sc, name, f_path_read_text, 1, 0, false, desc);
 }
 
 static s7_pointer
 f_path_write_text (s7_scheme* sc, s7_pointer args) {
-  const char* path = s7_string (s7_car (args));
+  const char* path= s7_string (s7_car (args));
   if (!path) {
-    return s7_make_integer(sc, -1);
+    return s7_make_integer (sc, -1);
   }
 
   const char* content= s7_string (s7_cadr (args));
   if (!content) {
-    return s7_make_integer(sc, -1);
+    return s7_make_integer (sc, -1);
   }
 
-  tb_file_ref_t file = tb_file_init(path, TB_FILE_MODE_WO | TB_FILE_MODE_CREAT | TB_FILE_MODE_TRUNC);
+  tb_file_ref_t file= tb_file_init (path, TB_FILE_MODE_WO | TB_FILE_MODE_CREAT |
+                                              TB_FILE_MODE_TRUNC);
   if (file == tb_null) {
-    return s7_make_integer(sc, -1);
+    return s7_make_integer (sc, -1);
   }
 
-  tb_filelock_ref_t lock = tb_filelock_init(file);
-  if (tb_filelock_enter(lock, TB_FILELOCK_MODE_EX) == tb_false) {
-    tb_filelock_exit(lock);
-    tb_file_exit(file);
-    return s7_make_integer(sc, -1);
+  tb_filelock_ref_t lock= tb_filelock_init (file);
+  if (tb_filelock_enter (lock, TB_FILELOCK_MODE_EX) == tb_false) {
+    tb_filelock_exit (lock);
+    tb_file_exit (file);
+    return s7_make_integer (sc, -1);
   }
 
-  tb_size_t content_size= strlen(content);
-  tb_size_t written_size= tb_file_writ(file, reinterpret_cast<const tb_byte_t*>(content), content_size);
+  tb_size_t content_size= strlen (content);
+  tb_size_t written_size= tb_file_writ (
+      file, reinterpret_cast<const tb_byte_t*> (content), content_size);
 
   bool release_success= tb_filelock_leave (lock);
   tb_filelock_exit (lock);
-  bool exit_success= tb_file_exit(file);
+  bool exit_success= tb_file_exit (file);
 
   if (written_size == content_size && release_success && exit_success) {
-    return s7_make_integer(sc, written_size);
-  } else {
-    return s7_make_integer(sc, -1);
+    return s7_make_integer (sc, written_size);
+  }
+  else {
+    return s7_make_integer (sc, -1);
   }
 }
 
-inline void glue_path_write_text(s7_scheme* sc) {
-  const char* name = "g_path-write-text";
-  const char* desc = "(g_path-write-text path content) => integer,\
+inline void
+glue_path_write_text (s7_scheme* sc) {
+  const char* name= "g_path-write-text";
+  const char* desc= "(g_path-write-text path content) => integer,\
 write content to the file at the given path and return the number of bytes written, or -1 on failure";
-  s7_define_function(sc, name, f_path_write_text, 2, 0, false, desc);
+  s7_define_function (sc, name, f_path_write_text, 2, 0, false, desc);
 }
 
 inline void
