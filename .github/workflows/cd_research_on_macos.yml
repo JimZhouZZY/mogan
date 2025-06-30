@@ -22,7 +22,7 @@ jobs:
           cache: 'true'
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
-          xmake-version: v2.8.7
+          xmake-version: v2.9.9
           actions-cache-folder: '.xmake-cache'
       - name: xmake repo --update
         run: xmake repo --update
@@ -36,7 +36,7 @@ jobs:
         run: |
           xmake install -vD research_packager
       - name: Upload 
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         with:
           path: build/MoganResearch-*.dmg
