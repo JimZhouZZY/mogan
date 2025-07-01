@@ -1,4 +1,4 @@
-name: Build and Test on macOS arm64
+name: Build and Test Mogan Research on macOS arm64
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
     paths:
       - 'src/**'
       - '!src/Plugins/Windows/**'
+      - 'TeXmacs/plugins/goldfish/src/*'
       - 'tests/**'
       - 'xmake.lua'
       - 'xmake/packages.lua'
@@ -18,6 +19,7 @@ on:
     paths:
       - 'src/**'
       - '!src/Plugins/Windows/**'
+      - 'TeXmacs/plugins/goldfish/src/*'
       - 'tests/**'
       - 'xmake.lua'
       - 'xmake/packages.lua'
@@ -65,7 +67,7 @@ jobs:
         run: xmake repo --update
 
       - name: cache packages from xrepo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ${{ env.XMAKE_GLOBALDIR }}/.xmake/packages
@@ -82,3 +84,13 @@ jobs:
         run: xmake config --policies=build.ccache -o ${{ runner.workspace }}/build -m releasedbg -a ${{ matrix.arch }} --yes
       - name: build
         run: xmake build --yes -vD research && xmake build --yes -vD --group=tests
+      - name: C++ tests
+        run: bash bin/test_all
+        env:
+          QT_QPA_PLATFORM: offscreen
+      - name: Scheme tests
+        run: bash bin/test_all_scheme
+      - name: integration test
+        run: bash bin/test_all_integrated
+        env:
+          QT_QPA_PLATFORM: offscreen

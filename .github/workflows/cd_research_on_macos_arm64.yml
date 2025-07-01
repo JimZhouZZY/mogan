@@ -15,11 +15,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
       - name: Install Qt
-        uses: jurplel/install-qt-action@v3
+        uses: jurplel/install-qt-action@v4
         with:
           version: 6.5.3
           target: 'desktop'
@@ -28,12 +28,20 @@ jobs:
         with:
           xmake-version: v2.8.7
           actions-cache-folder: '.xmake-cache'
+
+      - name: cache packages from xrepo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.xmake/packages
+          key: xrepo-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('xmake-requires.lock') }}
+
       - name: xmake repo --update
         run: xmake repo --update
       - name: config
         run: xmake config -m release -a ${{ matrix.arch }} -vD --yes
       - name: build
-        run: xmake build -vD --diagnosis research
+        run: xmake build -vD --yes research
       - name: install
         run: xmake install -vD research
       - name: Generate Installer
