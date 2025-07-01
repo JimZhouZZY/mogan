@@ -18,6 +18,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install curl openssl libgit2
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
