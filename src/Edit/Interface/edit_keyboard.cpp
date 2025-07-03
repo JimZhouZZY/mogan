@@ -116,8 +116,8 @@ edit_interface_rep::try_shortcut (string comb) {
   string  help;
 
   sv->get_keycomb (comb, status, cmd, shorth, help);
-  // cout << "Try " << comb << " -> " << shorth << ", " << help
-  //<< "; " << sh_mark << ", " << status << "\n";
+  cout << "Try " << comb << " -> " << shorth << ", " << help
+  << "; " << sh_mark << ", " << status << "\n";
   if (status != 0) {
     if (status >= 3) {
       interrupt_shortcut ();
