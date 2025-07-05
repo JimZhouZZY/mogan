@@ -330,7 +330,7 @@ archiver_rep::confirm () {
       if (depth <= last_save) last_save= -1;
       if (depth <= last_autosave) last_autosave= -1;
       normalize ();
-      // show_all ();
+      show_all ();
     }
   }
 }
@@ -688,8 +688,14 @@ archiver_rep::reconstruct_from_state (tree old_state, tree new_state, path p, st
   
   if (!trees_equal) {
     modification mod = compute_tree_diff(old_state, new_state, p, completion);
+    cout << "modification: " << mod << LF;
     add (mod);
-  } else {
+    
+    modification cursor_mod = compute_cursor_update(old_state, new_state, p, mod);
+    if (cursor_mod != mod_insert(path(), 0, "")) { // Check if cursor update is needed
+      cout << "cursor modification: " << cursor_mod << LF;
+      add (cursor_mod);
+    }
   }
   confirm ();
   simplify ();
@@ -697,14 +703,110 @@ archiver_rep::reconstruct_from_state (tree old_state, tree new_state, path p, st
 
 modification
 archiver_rep::compute_tree_diff (tree old_tree, tree new_tree, path p, string completion) {
-  // TODO: refactor
   cout << "compute_tree_diff: path=" << p << "\n";
-  string old_s =as_string(subtree(old_tree, path_up(p, 1)));
+  
+  string old_s = as_string(subtree(old_tree, path_up(p, 1)));
   string new_s = as_string(subtree(new_tree, path_up(p, 1)));
+  
+  SI i = 0;
+  SI j = 0;
+  
+  // Find common prefix
+  while (i < N(old_s) && i < N(new_s) && old_s[i] == new_s[i]) {
+    i++;
+  }
+  
+  // Find common suffix (but don't overlap with prefix)
+  while (j < (N(old_s) - i) && j < (N(new_s) - i) && 
+         old_s[N(old_s) - 1 - j] == new_s[N(new_s) - 1 - j]) {
+    j++;
+  }
+
+  // Calculate the different parts
+  SI old_start = i;
+  SI old_end = N(old_s) - j;
+  SI new_start = i;
+  SI new_end = N(new_s) - j;
+  
+  string old_diff = (old_end > old_start) ? old_s(old_start, old_end) : "";
+  string new_diff = (new_end > new_start) ? new_s(new_start, new_end) : "";
+  
+  cout << "old_s=\"" << old_s << "\", new_s=\"" << new_s << "\"\n";
+  cout << "old_diff=\"" << old_diff << "\", new_diff=\"" << new_diff << "\"\n";
+  cout << "prefix_len=" << i << ", suffix_len=" << j << "\n";
+  
   int insert_pos = last_item(p);
-  string insert_content = completion;
-  //cout << "compute_tree_diff: old_s=\"" << old_s << "\", new_s=\"" << new_s
-  //     << "\", insert_pos=" << insert_pos
-  //     << ", insert_content=\"" << insert_content << "\"\n";
-  return mod_insert (path_up(p, 1), insert_pos, insert_content);
+  
+  // Determine the operation based on the differences
+  if (old_diff == "" && new_diff != "") {
+    // Pure insertion
+    cout << "Pure insertion detected\n";
+    return mod_insert(path_up(p, 1), i, new_diff);
+  }
+  else if (old_diff != "" && new_diff == "") {
+    // Pure deletion  
+    cout << "Pure deletion detected\n";
+    // For deletion, the position should be relative to the new string
+    // Since we deleted from old_start to old_end, the deletion position
+    // in the context of the new string is at position i (common prefix length)
+    return mod_remove(path_up(p, 1), i, N(old_diff));
+  }
+  else if (old_diff != "" && new_diff != "") {
+    // Replacement (remove old, then insert new)
+    // For simplicity, we'll use insert with the new content at position i
+    cout << "Replacement detected, using insert\n";
+    return mod_insert(path_up(p, 1), i, new_diff);
+  }
+  else {
+    // No diff
+    cout << "No difference detected\n";
+    return mod_insert(path_up(p, 1), insert_pos, "");
+  }
+}
+
+modification
+archiver_rep::compute_cursor_update (tree old_tree, tree new_tree, path p, modification content_mod) {
+  cout << "compute_cursor_update: path=" << p << ", content_mod=" << content_mod << "\n";
+  int current_pos = last_item(p);
+  int new_cursor_pos = current_pos;
+  switch (content_mod->k) {
+    case MOD_INSERT: {
+      string inserted_text = as_string(content_mod->t);
+      int insert_pos = last_item(content_mod->p);
+      
+      if (current_pos >= insert_pos) {
+        // Cursor was at or after the insertion point, move it forward
+        new_cursor_pos = current_pos + N(inserted_text);
+      }
+      break;
+    }
+    
+    case MOD_REMOVE: {
+      int remove_pos = last_item(content_mod->p);
+      int remove_count = index(content_mod);
+      
+      if (current_pos > remove_pos + remove_count) {
+        // Cursor was after the removed content, move it back
+        new_cursor_pos = current_pos - remove_count;
+      }
+      else if (current_pos > remove_pos) {
+        // Cursor was within the removed content, place it at the removal point
+        new_cursor_pos = remove_pos;
+      }
+      break;
+    }
+    
+    default:
+      break;
+  }
+  
+  cout << "cursor position: " << current_pos << " -> " << new_cursor_pos << "\n";
+  
+  if (new_cursor_pos != current_pos) {
+    path cursor_path = path_up(p, 1);
+    return mod_set_cursor(cursor_path, new_cursor_pos, compound("cursor", "archiver"));
+  }
+  
+  // empty modification
+  return mod_insert(path(), 0, "");
 }

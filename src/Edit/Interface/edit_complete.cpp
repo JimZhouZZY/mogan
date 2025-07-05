@@ -172,12 +172,14 @@ edit_interface_rep::complete_start (string prefix, array<string> compls) {
     set_arch_versioning (true);
     insert_tree (completions[0]);
 
+    if (get_input_mode() != INPUT_COMPLETE) {
+      complete_et = copy (et);
+      complete_tp = copy (tp);
+      complete_str= completions[0];
+    }
     complete_message ();
     // beep ();
     set_input_mode (INPUT_COMPLETE);
-    complete_et = copy (et);
-    complete_tp = copy (tp);
-    complete_str= completions[0];
   }
 }
 
@@ -317,6 +319,7 @@ edit_interface_rep::custom_complete (tree r) {
   // cout << prefix << ", " << compls << LF;
 
   if ((prefix == "") || (N (compls) <= 1)) {
+    complete_str = string("");
     set_input_normal ();
     SERVER (set_completion_popup_visible (false));
     return;
