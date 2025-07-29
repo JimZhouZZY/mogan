@@ -1,0 +1,48 @@
+name: CD for Mogan STEM on macOS x86
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  macosbuild:
+    runs-on: macos-13
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v3
+        with:
+          version: 6.5.3
+          target: 'desktop'
+          cache: 'true'
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: v2.8.7
+          actions-cache-folder: '.xmake-cache'
+      - name: xmake repo --update
+        run: xmake repo --update
+      - name: config
+        run: xmake config -m release -vD --yes
+      - name: build
+        run: xmake build -vD stem 
+      - name: install
+        run: xmake install -vD stem
+      - name: Generate Installer
+        run: |
+          xmake install -vD liii_packager
+      - name: Upload 
+        uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        with:
+          path: build/MoganSTEM-*.dmg
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          prerelease: true
+          files: build/MoganSTEM-*.dmg
