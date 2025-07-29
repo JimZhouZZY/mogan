@@ -1,4 +1,4 @@
-name: Build and Test Mogan Research on macOS arm64
+name: Build and Test LiiiSTEM on macOS
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
       - 'xmake/research.lua'
       - 'xmake/packages/**'
       - 'xmake-requires.lock'
-      - '.github/workflows/ci-macos-arm64.yml'
+      - '.github/workflows/ci-stem-macos-arm64.yml'
   pull_request:
     branches: [ branch-1.2 ]
     paths:
@@ -26,15 +26,15 @@ on:
       - 'xmake/research.lua'
       - 'xmake/packages/**'
       - 'xmake-requires.lock'
-      - '.github/workflows/ci-macos-arm64.yml'
+      - '.github/workflows/ci-stem-macos-arm64.yml'
 
 jobs:
   macosbuild:
     strategy:
       matrix:
         os: [macos-13]
-        arch: [arm64]
-    runs-on: ${{ matrix.os }}
+        arch: [x86_64]
+    runs-on: macos-13
     timeout-minutes: 45
     if: always()
     steps:
@@ -54,7 +54,7 @@ jobs:
           version: 6.5.3
           target: 'desktop'
           cache: 'true'
-
+          
       - name: set XMAKE_GLOBALDIR
         run: echo "XMAKE_GLOBALDIR=${{ runner.workspace }}/xmake-global" >> $GITHUB_ENV
 
@@ -73,17 +73,10 @@ jobs:
             ${{ env.XMAKE_GLOBALDIR }}/.xmake/packages
           key: xrepo-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('xmake-requires.lock') }}
 
-      - name: cache xmake
-        uses: actions/cache@v3
-        with:
-          path: |
-            ${{ runner.workspace }}/build/.build_cache
-          key: xmake-build-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('xmake-requires.lock') }}
-
       - name: config
-        run: xmake config --policies=build.ccache -o ${{ runner.workspace }}/build -m releasedbg -a ${{ matrix.arch }} --yes
+        run: xmake config --policies=build.ccache -o ${{ runner.workspace }}/build -m releasedbg --yes
       - name: build
-        run: xmake build --yes -vD research && xmake build --yes -vD --group=tests
+        run: xmake build --yes -vD liii && xmake build --yes -vD --group=tests
       - name: C++ tests
         run: bash bin/test_all
         env:

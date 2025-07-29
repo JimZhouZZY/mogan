@@ -1,4 +1,4 @@
-name: CD for Mogan Research on macOS arm64
+name: CD for Liii STEM on macOS arm64
 
 on:
   workflow_dispatch:
@@ -41,22 +41,22 @@ jobs:
       - name: config
         run: xmake config -m release -a ${{ matrix.arch }} -vD --yes
       - name: build
-        run: xmake build -vD --yes research
+        run: xmake build -vD --yes liii
       - name: install
-        run: xmake install -vD research
+        run: xmake install -vD liii
       - name: Generate Installer
         run: |
-          xmake install -vD research_packager
+          xmake install -vD liii_packager
       - name: Upload 
         uses: actions/upload-artifact@v4
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         with:
-          path: build/MoganResearch-*.dmg
+          name: LiiiSTEM-macos-arm64-dmg
+          path: build/LiiiSTEM-*.dmg
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           prerelease: true
-          files: build/MoganResearch-*.dmg
+          files: build/LiiiSTEM-*.dmg
 
 
