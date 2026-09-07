@@ -12,6 +12,7 @@
 #ifndef QT_CHAT_TAB_WIDGET_HPP
 #define QT_CHAT_TAB_WIDGET_HPP
 
+#include "qt_chat_model.hpp"
 #include "qt_chat_session.hpp"
 #include <QList>
 #include <QMap>
@@ -24,6 +25,7 @@ class QFrame;
 class QHBoxLayout;
 class QLabel;
 class QLineEdit;
+class QMenu;
 class QPushButton;
 class QScrollArea;
 class QSpacerItem;
@@ -96,6 +98,15 @@ public:
   void focusInput ();
 
   /**
+   * @brief 更新 Model 按钮显示：logo + 模型名 + 菜单开合箭头。
+   *
+   * @param name     模型显示名
+   * @param icon     模型图标名（缺失显示占位圆点）
+   * @param menuOpen 菜单是否打开（箭头朝上/下）
+   */
+  void setModelDisplay (const string& name, const string& icon, bool menuOpen);
+
+  /**
    * @brief 读取输入区域的文档内容。
    * @return 输入内容的 tree 表示
    */
@@ -149,7 +160,8 @@ signals:
   void sendRequested (const string& sessionId);
   void thinkingToggled (const string& sessionId, bool enabled);
   void searchToggled (const string& sessionId, bool enabled);
-  /// 请求弹出模型选择菜单；globalPos 为建议弹出位置
+  /// 请求弹出模型选择菜单；globalPos 为 Model 按钮左上角全局坐标，
+  /// 菜单由 Controller 在按钮上方完整弹出（不遮挡按钮）
   void modelMenuRequested (const string& sessionId, const QPoint& globalPos);
   void inputHeightChanged ();
   void closeSidebarInDockModeRequested ();
@@ -189,6 +201,18 @@ private:
   int          fixedFrameExtra_           = 0;     ///< 输入框额外高度（边框等）
   bool         inputHeightAdjustScheduled_= false; ///< 是否已有待执行的高度更新
 };
+
+/**
+ * @brief 为 QMenu 填充模型选择菜单项（[logo][名称][徽标] 自定义行）。
+ *
+ * 菜单每次打开重建，故每次调用前应使用新的 QMenu；本函数按 models 顺序
+ * 逐项构造 QWidgetAction 行，选中项（key == currentKey）背景加深。
+ * @param menu       目标菜单
+ * @param models     模型条目，顺序即展示顺序
+ * @param currentKey 当前会话模型 key（不在清单内时无选中项）
+ */
+void chat_model_menu_populate (QMenu* menu, const QList<ChatModelInfo>& models,
+                               const string& currentKey);
 
 /**
  * @brief 聊天侧边栏控件（纯 UI，自管理 items）。

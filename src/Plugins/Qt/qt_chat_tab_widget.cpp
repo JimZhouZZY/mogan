@@ -17,6 +17,7 @@
 #include "new_buffer.hpp"
 #include "new_view.hpp"
 #include "preferences.hpp"
+#include "qt_chat_model.hpp"
 #include "qt_dpi_utils.hpp"
 #include "qt_gui.hpp"
 #include "qt_utilities.hpp"
@@ -38,6 +39,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
+#include <QPainter>
+#include <QPixmap>
 #include <QPropertyAnimation>
 #include <QPushButton>
 #include <QResizeEvent>
@@ -48,6 +51,7 @@
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QVariantAnimation>
+#include <QWidgetAction>
 
 using namespace moebius;
 
@@ -125,7 +129,30 @@ constexpr int kConversationBtnRadius = 6;
 //---- dock 模式 常量 ----
 constexpr int kCloseSidebarBtnMarginY= 12;
 
+// ---- 模型菜单/Model 按钮共用常量 ----
+constexpr int kModelLogoSize= 18;
+
 constexpr char kChatEmbeddedStyle[]= "style";
+
+/**
+ * @brief 构造模型 logo 图标；图标缺失时画占位圆点。
+ */
+QIcon
+make_model_icon (const string& icon) {
+  int   size= DpiUtils::scaled (kModelLogoSize);
+  QIcon qIcon (":llm-chat/models/" + to_qstring (icon) + ".svg");
+  if (is_empty (icon) || qIcon.isNull ()) {
+    QPixmap dot (size, size);
+    dot.fill (Qt::transparent);
+    QPainter p (&dot);
+    p.setRenderHint (QPainter::Antialiasing);
+    p.setPen (Qt::NoPen);
+    p.setBrush (QColor (0xc8, 0xc8, 0xc8));
+    p.drawEllipse (0, 0, size - 1, size - 1);
+    return QIcon (dot);
+  }
+  return qIcon;
+}
 
 /**
  * @brief 聊天嵌入编辑器的文档样式。
@@ -301,17 +328,21 @@ ChatConversationPanel::setup_ui () {
   btnLayout->addWidget (searchButton_);
   btnLayout->addStretch ();
 
-  // Model button（占位：弹出只读菜单，不含切换逻辑）
+  // Model button：显示当前模型 logo+名称+开合箭头，点击发 modelMenuRequested，
+  // 由 Controller 在按钮上方弹出模型选择菜单
   modelButton_= new QToolButton (inputFrame);
   modelButton_->setObjectName ("chat-tab-model-btn");
   modelButton_->setText (qt_translate ("Model"));
+  modelButton_->setToolButtonStyle (Qt::ToolButtonTextBesideIcon);
+  modelButton_->setIconSize (QSize (DpiUtils::scaled (kModelLogoSize),
+                                    DpiUtils::scaled (kModelLogoSize)));
   modelButton_->setFocusPolicy (Qt::NoFocus);
   modelButton_->setCursor (Qt::PointingHandCursor);
   modelButton_->setFixedHeight (DpiUtils::scaled (kSendButtonSize));
   connect (modelButton_, &QToolButton::clicked, this, [this] () {
-    // 菜单向上弹出：携带按钮左上角上方的全局坐标
-    emit modelMenuRequested (sessionId_, modelButton_->mapToGlobal (QPoint (
-                                             0, -modelButton_->height ())));
+    // 携带按钮左上角全局坐标，菜单由 Controller 定位到按钮上方
+    emit modelMenuRequested (sessionId_,
+                             modelButton_->mapToGlobal (QPoint (0, 0)));
   });
   btnLayout->addWidget (modelButton_);
   btnLayout->addSpacing (DpiUtils::scaled (kSidebarSpacing));
@@ -482,6 +513,17 @@ ChatConversationPanel::focusInput () {
     inputQTMWidget_->clearFocus ();
     inputQTMWidget_->setFocus (Qt::OtherFocusReason);
   }
+}
+
+void
+ChatConversationPanel::setModelDisplay (const string& name, const string& icon,
+                                        bool menuOpen) {
+  if (!modelButton_) return;
+  modelButton_->setIcon (make_model_icon (icon));
+  // 菜单在按钮上方弹出：打开时箭头朝上，关闭朝下
+  modelButton_->setText (to_qstring (name) + (menuOpen
+                                                  ? QString (" \xe2\x96\xb4")
+                                                  : QString (" \xe2\x96\xbe")));
 }
 
 tree
@@ -707,6 +749,160 @@ ChatConversationPanel::adjust_input_height () {
   if (frame->height () != targetFrameH) {
     frame->setFixedHeight (targetFrameH);
     emit inputHeightChanged ();
+  }
+}
+
+/******************************************************************************
+ * 模型选择菜单
+ ******************************************************************************/
+
+namespace {
+
+constexpr int kModelMenuPadX       = 10;
+constexpr int kModelMenuPadY       = 8;
+constexpr int kModelMenuRowHeight  = 34;
+constexpr int kModelMenuNameFontPx = 13;
+constexpr int kModelMenuBadgeFontPx= 10;
+constexpr int kModelMenuBadgePadX  = 6;
+constexpr int kModelMenuBadgeRadius= 4;
+constexpr int kModelMenuBadgeGap   = 16;
+constexpr int kModelMenuRowRadius  = 6;
+
+/**
+ * @brief 模型菜单行（QWidgetAction 内容控件），[logo][名称]+右侧徽标。
+ *
+ * 鼠标处理沿用 QTMMenuButton 的成熟做法（QTBUG-10427 / TeXmacs #37719）：
+ * QWidgetAction 内的控件触发后菜单不一定关闭，需同时
+ * 1) released 信号手动 trigger 所在 action（见 chat_model_menu_populate，
+ *    Controller 经 QMenu::triggered 信号捕获选择）
+ * 2) 鼠标事件显式转发父级（菜单据此自行关闭）
+ */
+class ChatModelMenuRow : public QToolButton {
+public:
+  ChatModelMenuRow (QWidget* parent) : QToolButton (parent) {
+    setToolButtonStyle (Qt::ToolButtonTextBesideIcon);
+    setIconSize (QSize (DpiUtils::scaled (kModelLogoSize),
+                        DpiUtils::scaled (kModelLogoSize)));
+    setFocusPolicy (Qt::NoFocus);
+    setCursor (Qt::PointingHandCursor);
+    setSizePolicy (QSizePolicy::Expanding, QSizePolicy::Fixed);
+    setFixedHeight (DpiUtils::scaled (kModelMenuRowHeight));
+    DpiUtils::applyScaledFont (this, kModelMenuNameFontPx);
+  }
+
+  /**
+   * @brief 挂载描述徽标（对鼠标透明，点击仍落在按钮上）。
+   */
+  void setBadge (QLabel* badgeLabel) {
+    badge_= badgeLabel;
+    badge_->setParent (this);
+    badge_->setAttribute (Qt::WA_TransparentForMouseEvents, true);
+    badge_->adjustSize ();
+    badgeWidth_= badge_->width ();
+    badge_->show ();
+    positionBadge ();
+  }
+
+  /**
+   * @brief 徽标宽度计入 sizeHint，菜单据此加宽，避免徽标压住文本。
+   */
+  QSize sizeHint () const override {
+    QSize hint= QToolButton::sizeHint ();
+    if (badgeWidth_ > 0)
+      hint.rwidth ()+= badgeWidth_ + DpiUtils::scaled (kModelMenuBadgeGap);
+    return hint;
+  }
+
+protected:
+  void resizeEvent (QResizeEvent* e) override {
+    QToolButton::resizeEvent (e);
+    positionBadge ();
+  }
+  /// QTMMenuButton 模式：先走按钮自身逻辑，再把事件转发给父级（菜单）
+  void mousePressEvent (QMouseEvent* e) override {
+    QToolButton::mousePressEvent (e);
+    QWidget::mousePressEvent (e);
+  }
+  /// 同上
+  void mouseReleaseEvent (QMouseEvent* e) override {
+    QToolButton::mouseReleaseEvent (e);
+    QWidget::mouseReleaseEvent (e);
+  }
+
+private:
+  void positionBadge () {
+    if (!badge_) return;
+    int x= width () - badge_->width () - DpiUtils::scaled (kModelMenuPadX);
+    int y= (height () - badge_->height ()) / 2;
+    badge_->move (x, y);
+  }
+
+  QLabel* badge_     = nullptr; ///< 右侧描述徽标
+  int     badgeWidth_= 0;       ///< 徽标宽度（sizeHint 计入用）
+};
+
+/**
+ * @brief 构造描述徽标：圆角小标签，dscColor 红/橙两种预设背景。
+ */
+QLabel*
+make_model_badge (const ChatModelInfo& info) {
+  QLabel* badge= new QLabel (to_qstring (info.description));
+  DpiUtils::applyScaledFont (badge, kModelMenuBadgeFontPx);
+  // string::operator== 非 const，拷贝后再比较（lolly 既有行为）
+  string      dscColor= info.dscColor;
+  const char* bg      = (dscColor == "red") ? "#e03131" : "#f08c00";
+  badge->setStyleSheet (
+      QString ("QLabel { color: #ffffff; background-color: %1; "
+               "border-radius: %2px; padding: 1px %3px; }")
+          .arg (bg)
+          .arg (DpiUtils::scaled (kModelMenuBadgeRadius))
+          .arg (DpiUtils::scaled (kModelMenuBadgePadX)));
+  return badge;
+}
+
+} // namespace
+
+void
+chat_model_menu_populate (QMenu* menu, const QList<ChatModelInfo>& models,
+                          const string& currentKey) {
+  // 选中/hover 配色沿用 liii.css / liii-night.css 的既有选中色
+  string  theme   = get_preference ("gui theme", "default");
+  bool    night   = (theme == "liii-night" || theme == "dark");
+  QString selected= night ? QString ("#1a3a5a") : QString ("#e8eefc");
+  QString hover=
+      night ? QString ("rgba(255,255,255,0.08)") : QString ("rgba(0,0,0,0.06)");
+  menu->setStyleSheet (
+      QString ("QToolButton#chat-model-menu-item {"
+               " border: none; border-radius: %1px;"
+               " padding: 0 %2px 0 %2px; background: transparent; }"
+               " QToolButton#chat-model-menu-item:hover {"
+               " background-color: %3; }"
+               " QToolButton#chat-model-menu-item[selected=\"true\"]"
+               " { background-color: %4; }")
+          .arg (DpiUtils::scaled (kModelMenuRowRadius))
+          .arg (DpiUtils::scaled (kModelMenuPadX))
+          .arg (hover)
+          .arg (selected));
+
+  // string::operator== 非 const，按值迭代才能比较（lolly 既有行为）
+  for (ChatModelInfo info : models) {
+    QWidgetAction* act= new QWidgetAction (menu);
+    act->setData (to_qstring (info.key));
+
+    ChatModelMenuRow* row= new ChatModelMenuRow (menu);
+    row->setObjectName ("chat-model-menu-item");
+    row->setProperty ("selected", info.key == currentKey);
+    row->setIcon (make_model_icon (info.icon));
+    row->setText (to_qstring (info.name));
+    if (!is_empty (info.description)) row->setBadge (make_model_badge (info));
+
+    // QTMTileAction 模式：released 手动 trigger，让 exec 返回该项；
+    // 事件转发给菜单由 ChatModelMenuRow 的鼠标处理负责。
+    // 注意限定 QObject::connect，避免命中 mogan 的 connect(widget,...) 重载
+    QObject::connect (row, &QToolButton::released, act, &QAction::trigger);
+
+    act->setDefaultWidget (row);
+    menu->addAction (act);
   }
 }
 
