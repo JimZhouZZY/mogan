@@ -101,7 +101,6 @@ TestChatModel::test_parse_new_format_full_fields () {
       " \"models\": ["
       "  { \"model\": \"kimi-k3\", \"name\": \"K3\","
       "    \"base_url\": \"/api/v1/ai/siliconflow/chat\","
-      "    \"default_system\": \"You are helpful.\","
       "    \"thinking\": true, \"search\": true, \"enable\": true,"
       "    \"allow_thinking\": false, \"allow_search\": false,"
       "    \"icon\": \"kimi\", \"description\": \"Vision\","
@@ -119,7 +118,6 @@ TestChatModel::test_parse_new_format_full_fields () {
   QVERIFY (!m.allowThinking);
   QVERIFY (!m.allowSearch);
   QVERIFY (m.baseUrl == string ("/api/v1/ai/siliconflow/chat"));
-  QVERIFY (m.defaultSystem == string ("You are helpful."));
   QVERIFY (defaultKey == string ("kimi-k3"));
 }
 
@@ -153,7 +151,6 @@ TestChatModel::test_parse_new_format_defaults () {
   QVERIFY (m.allowThinking);
   QVERIFY (m.allowSearch);
   QVERIFY (m.baseUrl == string (""));
-  QVERIFY (m.defaultSystem == string (""));
 }
 
 void

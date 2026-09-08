@@ -216,11 +216,14 @@ ChatController::onSendRequested (const string& sessionId) {
   // session 文档末尾（devel/1230.md）
   panel->ensureMessageWidget ();
 
-  if (!as_bool (
-          call ("chat-tab-send", sessionId, session->model,
-                session->thinking ? string ("enabled") : string ("disabled"),
-                session->search ? string ("enabled") : string ("disabled"))))
-    return;
+  // 协议下发参数取自模型清单：baseUrl 透传清单原值，相对路径由 scheme 侧
+  // 拼接当前 stem site
+  ChatModelInfo info= modelStore_.find (session->model);
+  array<object> args;
+  args << object (sessionId) << object (info.key) << object (info.baseUrl)
+       << object (session->thinking ? string ("enabled") : string ("disabled"))
+       << object (session->search ? string ("enabled") : string ("disabled"));
+  if (!as_bool (call ("chat-tab-send", args))) return;
 
   sessionManager_.setState (sessionId, ChatState::Generating);
   sessionManager_.touchSession (sessionId);
