@@ -48,4 +48,31 @@ public:
   void perform_dialog ();
 };
 
+/*! @brief 另存为建议名改写与目标格式判定：.ts → .stem，.tm → .tmu
+ *         （继任格式引导，任务 1279）
+ *  @param file 建议文件名，命中 .ts/.tm 时被就地改写为默认后缀
+ *  @return 目标默认后缀（"stem"/"tmu"），空串表示非引导场景；非空时最终文件名
+ *          需按所选过滤器后缀规范（chooser_normalize_suffix），为 "stem" 时
+ *          过滤器收窄为 stem/ts 两项（chooser_style_filters）
+ *  @note 纯函数，供单测；不触发 scheme 调用
+ */
+string chooser_save_as_target (string& file);
+
+/*! @brief .ts/.stem 样式另存的成对过滤器：stem（默认）在前、ts（兼容）在后
+ *  @note 纯函数，供单测；translate 在未加载字典时返回原文，不依赖 scheme
+ */
+QStringList chooser_style_filters ();
+
+/*! @brief 从名称过滤器的括号内容解析首个后缀（如 "TS files (*.ts)" → "ts"），
+ *         无括号或无 `*.xxx` 模式时返回空串
+ *  @note 纯函数，供单测
+ */
+QString chooser_filter_first_suffix (const QString& filter);
+
+/*! @brief 保存确认后的最终文件名：去掉最后一个分隔符后的旧后缀，接上指定后缀；
+ *         path 非文件路径（无 `/` 或以 `/` 结尾）或后缀为空时原样返回
+ *  @note 纯函数，供单测
+ */
+QString chooser_normalize_suffix (const QString& path, const QString& suffix);
+
 #endif // QT_CHOOSER_WIDGET_HPP
