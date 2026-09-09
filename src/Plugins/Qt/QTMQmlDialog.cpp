@@ -10,6 +10,7 @@
 #include "QTMQmlDialog.hpp"
 #include "ColorPickerBridge.hpp"
 #include "FontSelectorBridge.hpp"
+#include "GradientSelectorBridge.hpp"
 #include "ParagraphFormatBridge.hpp"
 #include "PreferencesBridge.hpp"
 #include "PrintToFileBridge.hpp"
@@ -1216,5 +1217,88 @@ cpp_color_picker_dialog (string title, array<tree> proposals,
       set_preference (CUSTOM_PREF, from_qstring (joined));
     }
   }
+  return r;
+}
+
+/**
+ * @brief 拼装渐变选择器的返回树 (tuple (pattern name w h (eff-gradient "0" fg
+ * bg)))。
+ */
+static tree
+gradient_result (const string& name, const string& w, const string& h,
+                 const string& fg, const string& bg) {
+  using moebius::EFF_GRADIENT;
+  using moebius::PATTERN;
+
+  tree eff (EFF_GRADIENT);
+  eff << tree ("0") << tree (fg) << tree (bg);
+  tree res (PATTERN);
+  res << tree (name) << tree (w) << tree (h) << eff;
+  tree r (TUPLE);
+  r << res;
+  return r;
+}
+
+/**
+ * @brief QML 渐变选择器对话框的 glue 入口。
+ */
+tree
+cpp_gradient_selector_dialog (tree old_col) {
+  using moebius::EFF_GRADIENT;
+  using moebius::PATTERN;
+
+  string preset= get_env ("MOGAN_TEST_GRADIENT_SELECTOR");
+  if (preset == "cancel") return tree (TUPLE);
+  if (preset == "ok") {
+    return gradient_result ("vertical-white-black.png", "100%", "100%", "black",
+                            "white");
+  }
+
+  string init_name= "vertical-white-black.png";
+  string init_w   = "100%";
+  string init_h   = "100%";
+  string init_fg  = "black";
+  string init_bg  = "white";
+
+  // 解析原有 pattern: (pattern <name> <width> <height> [(eff-gradient "0" <fg>
+  // <bg>)])
+  if (is_func (old_col, PATTERN) && N (old_col) >= 3) {
+    if (is_atomic (old_col[0])) init_name= as_string (old_col[0]);
+    if (is_atomic (old_col[1])) init_w= as_string (old_col[1]);
+    if (is_atomic (old_col[2])) init_h= as_string (old_col[2]);
+    if (N (old_col) >= 4) {
+      tree eff_tree= old_col[3];
+      if (is_func (eff_tree, EFF_GRADIENT, 3)) {
+        if (is_atomic (eff_tree[1])) init_fg= as_string (eff_tree[1]);
+        if (is_atomic (eff_tree[2])) init_bg= as_string (eff_tree[2]);
+      }
+    }
+  }
+
+  GradientSelectorBridge* gradBridge= nullptr;
+  QmlDialogBridge*        bridge    = nullptr;
+
+  int rc= run_qml_dialog (
+      "qrc:/qml/GradientSelector.qml", "GradientSelector.qml",
+      [&] (QQuickWidget* qw, QDialog& host) {
+        bridge    = inject_common_context (qw, host);
+        gradBridge= new GradientSelectorBridge (
+            &host, to_qstring (init_name), to_qstring (init_w),
+            to_qstring (init_h), to_qstring (init_fg), to_qstring (init_bg));
+        qw->rootContext ()->setContextProperty ("gradBridge", gradBridge);
+      },
+      700, 460);
+
+  delete bridge;
+
+  tree r (TUPLE);
+  if (rc == QDialog::Accepted && gradBridge) {
+    r= gradient_result (from_qstring (gradBridge->patternName ()),
+                        from_qstring (gradBridge->width ()),
+                        from_qstring (gradBridge->height ()),
+                        from_qstring (gradBridge->foregroundColor ()),
+                        from_qstring (gradBridge->backgroundColor ()));
+  }
+  delete gradBridge;
   return r;
 }
