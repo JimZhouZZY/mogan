@@ -192,9 +192,24 @@
   ) ;with
 ) ;define
 
-(tm-define (extract-style-file style?)
-  (let* ((tit (extract-source-title style?))
-         (packs (extract-use-package style?))
+(define style-package-targets (make-ahash-table))
+
+(tm-define (style-package-target-url buf) (ahash-ref style-package-targets buf))
+
+(define (style-package-compute-target orig)
+  (cond ((or (url-scratch? orig) (url-rooted-tmfs? orig))
+         (url-append (get-documents-path)
+           (string-append "LiiiSTEM/" (url-basename orig) ".stem")
+         ) ;url-append
+        ) ;
+        (else (url-append (url-head orig) (string-append (url-basename orig) ".stem")))
+  ) ;cond
+) ;define
+
+(tm-define (extract-style-package)
+  (let* ((orig (current-buffer))
+         (tit (extract-source-title #f))
+         (packs (extract-use-package #f))
          (inits (extract-style-parameters))
          (defs (extract-macro-definitions))
          (body `(document ,tit ,@packs ,@inits ,@defs))
@@ -203,7 +218,11 @@
                  (body ,body))
          ) ;doc
         ) ;
-    (new-buffer)
+    (new-buffer ".stem")
+    (ahash-set! style-package-targets
+      (current-buffer)
+      (style-package-compute-target orig)
+    ) ;ahash-set!
     (delayed (:idle 1) (buffer-set (current-buffer) doc))
   ) ;let*
 ) ;tm-define

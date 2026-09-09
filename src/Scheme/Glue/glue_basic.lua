@@ -1758,9 +1758,12 @@ function main()
             },
             
             {
-                scm_name = "new-buffer",
+                scm_name = "cpp-new-buffer-with-ext",
                 cpp_name = "create_buffer",
-                ret_type = "url"
+                ret_type = "url",
+                arg_list = {
+                    "string"
+                }
             },
             {
                 scm_name = "open-buffer-in-window",
