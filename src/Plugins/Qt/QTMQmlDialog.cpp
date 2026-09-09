@@ -585,15 +585,8 @@ cpp_form_dialog (tree fields) {
       420, logicH);
 
   // 退出码对 form 型无意义；Cancel / 加载失败均返回空 tree。
-  tree               r (TUPLE);
-  const QVariantMap& res= bridge ? bridge->results () : QVariantMap ();
+  tree r= bridge ? kv_map_to_tree (bridge->results ()) : tree (TUPLE);
   delete bridge;
-  for (auto it= res.begin (); it != res.end (); ++it) {
-    tree kv (TUPLE);
-    kv << tree (from_qstring (it.key ()));
-    kv << tree (from_qstring (it.value ().toString ()));
-    r << kv;
-  }
   return r;
 }
 
@@ -633,16 +626,49 @@ cpp_search_recent_dialog () {
       },
       460, logicH);
 
-  tree               r (TUPLE);
-  const QVariantMap& res=
-      closeBridge ? closeBridge->results () : QVariantMap ();
+  tree r= closeBridge ? kv_map_to_tree (closeBridge->results ()) : tree (TUPLE);
   delete closeBridge;
-  for (auto it= res.begin (); it != res.end (); ++it) {
+  return r;
+}
+
+// ---- 增加宏包 --------------------------------------------------------------
+
+/**
+ * @brief 「增加宏包」QML 对话框 glue 入口（一次性提交）。
+ * @return 用户点 OK / 回车返回 (tuple (tuple "package" <name>))；Cancel / 关闭
+ * / 加载失败返回空 tree。
+ * @details 走 run_qml_dialog。scheme 侧把 package 交给 add-style-package。
+ * @note 测试钩子 MOGAN_TEST_ADD_PACKAGE=ok|cancel|<name> 命中时不弹窗。
+ */
+tree
+cpp_add_package_dialog () {
+  string preset= get_env ("MOGAN_TEST_ADD_PACKAGE");
+  if (preset == "cancel") return tree (TUPLE);
+  if (preset != "") {
+    tree r (TUPLE);
     tree kv (TUPLE);
-    kv << tree (from_qstring (it.key ()))
-       << tree (from_qstring (it.value ().toString ()));
+    kv << tree ("package") << tree (preset == "ok" ? string ("") : preset);
     r << kv;
+    return r;
   }
+  array<string> buttons= {string ("OK"), string ("Cancel")};
+  const int     logicH = 24 * 2 + (44 + 12) + 64;
+
+  QmlDialogBridge* closeBridge= nullptr;
+  run_qml_dialog (
+      "qrc:/qml/AddPackage.qml", "AddPackage.qml",
+      [&] (QQuickWidget* qw, QDialog& host) {
+        closeBridge= inject_common_context (qw, host);
+        qw->rootContext ()->setContextProperty (
+            "packageLabel", qt_translate ("Add style package:"));
+        qw->rootContext ()->setContextProperty ("packageName", QString ());
+        qw->rootContext ()->setContextProperty ("dialogButtons",
+                                                translate_buttons (buttons));
+      },
+      360, logicH);
+
+  tree r= closeBridge ? kv_map_to_tree (closeBridge->results ()) : tree (TUPLE);
+  delete closeBridge;
   return r;
 }
 
@@ -1020,17 +1046,9 @@ cpp_print_to_file_dialog (tree form) {
       460, logicH);
 
   // 退出码对 form 型无意义；Cancel / 加载失败均返回空 tree。
-  tree               r (TUPLE);
-  const QVariantMap& res=
-      closeBridge ? closeBridge->results () : QVariantMap ();
+  tree r= closeBridge ? kv_map_to_tree (closeBridge->results ()) : tree (TUPLE);
   delete closeBridge;
   delete printBridge;
-  for (auto it= res.begin (); it != res.end (); ++it) {
-    tree kv (TUPLE);
-    kv << tree (from_qstring (it.key ()))
-       << tree (from_qstring (it.value ().toString ()));
-    r << kv;
-  }
   return r;
 }
 
