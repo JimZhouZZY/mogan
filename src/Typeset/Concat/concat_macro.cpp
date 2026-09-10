@@ -11,6 +11,7 @@
 
 #include "concater.hpp"
 #include "observers.hpp"
+#include "tm_debug.hpp"
 #include "tm_url.hpp"
 
 using namespace moebius;
@@ -93,10 +94,30 @@ concater_rep::typeset_with (tree t, path ip) {
   STACK_DELETE_ARRAY (newv);
 }
 
+// \def\a{\a} 之类的自递归宏在宏展开处无限递归直至栈溢出，
+// 限制宏展开嵌套深度，超限按占位标记降级渲染
+static const int max_macro_depth= 100;
+
+struct macro_depth_guard {
+  int& depth;
+  macro_depth_guard (int& d) : depth (d) { depth++; }
+  ~macro_depth_guard () { depth--; }
+};
+
+bool
+concater_rep::macro_depth_exceeded (tree t, path ip) {
+  if (env->macro_depth < max_macro_depth) return false;
+  failed_error << "macro expansion too deep: " << as_string (L (t)) << "\n";
+  print (test_box (ip));
+  return true;
+}
+
 void
 concater_rep::typeset_compound (tree t, path ip) {
-  int  d;
-  tree f;
+  if (macro_depth_exceeded (t, ip)) return;
+  macro_depth_guard guard (env->macro_depth);
+  int               d;
+  tree              f;
   if (L (t) == COMPOUND) {
     if (N (t) == 0) {
       typeset_error (t, ip);
@@ -168,6 +189,8 @@ concater_rep::typeset_compound (tree t, path ip) {
 
 void
 concater_rep::typeset_auto (tree t, path ip, tree f) {
+  if (macro_depth_exceeded (t, ip)) return;
+  macro_depth_guard guard (env->macro_depth);
   env->macro_arg= list<hashmap<string, tree>> (hashmap<string, tree> (UNINIT),
                                                env->macro_arg);
   env->macro_src= list<hashmap<string, path>> (

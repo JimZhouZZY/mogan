@@ -198,12 +198,29 @@ find_font_bis (tree t) {
   return font ();
 }
 
+// 析构时回退递归计数并结算计时，异常路径（底层字体加载抛异常）同样生效
+struct find_font_guard {
+  int& level;
+  find_font_guard (int& l) : level (l) { level++; }
+  ~find_font_guard () {
+    level--;
+    bench_cumul ("find font");
+  }
+};
+
 font
 find_font (tree t) {
+  static int find_font_level= 0;
+  // 规则驱动的递归转换缺乏终止保证，字体规则成环时会无限递归直到栈溢出，
+  // 这里限制递归深度，超限按"字体未找到"降级
+  static const int max_find_font_level= 100;
+  if (find_font_level >= max_find_font_level) {
+    failed_error << "find_font recursion too deep, giving up on " << t << "\n";
+    return font ();
+  }
   bench_start ("find font");
-  font fn= find_font_bis (t);
-  bench_cumul ("find font");
-  return fn;
+  find_font_guard guard (find_font_level);
+  return find_font_bis (t);
 }
 
 font
